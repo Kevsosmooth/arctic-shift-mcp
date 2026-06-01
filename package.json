@@ -1,0 +1,54 @@
+{
+  "name": "arctic-shift-mcp",
+  "version": "0.1.0",
+  "description": "Zero-auth, drop-in Reddit MCP server backed by the Arctic Shift archive. Search and read Reddit posts, comments, users, and subreddits with no Reddit login. Optional write tools (submit, reply, vote) activate only when Reddit API credentials are provided.",
+  "type": "module",
+  "bin": {
+    "arctic-shift-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "test": "node --import tsx --test test/*.test.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "reddit",
+    "arctic-shift",
+    "claude",
+    "claude-code",
+    "llm",
+    "ai"
+  ],
+  "license": "MIT",
+  "author": "Kevsosmooth",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kevsosmooth/arctic-shift-mcp.git"
+  },
+  "homepage": "https://github.com/Kevsosmooth/arctic-shift-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/Kevsosmooth/arctic-shift-mcp/issues"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.22.4",
+    "typescript": "^5.7.0"
+  }
+}
