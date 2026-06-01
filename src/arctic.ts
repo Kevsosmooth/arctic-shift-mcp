@@ -31,38 +31,75 @@ export function buildUrl(
   return url.toString();
 }
 
+const MAX_RETRIES = 2; // total attempts = 3
+const RETRY_BASE_MS = 500; // backoff: 500ms, 1000ms
+const REQUEST_TIMEOUT_MS = 15_000;
+
+/**
+ * Whether an HTTP status is worth retrying. Arctic Shift's free origin behind
+ * Cloudflare intermittently 522s / 5xxs under load; 429 is handled separately
+ * (we surface it, never retry it).
+ */
+export function isTransientStatus(status: number): boolean {
+  if (status === 408 || status === 425) return true; // request timeout / too early
+  return status >= 500 && status !== 501; // 5xx incl. Cloudflare 520-524, except "not implemented"
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function arcticGet(
   config: Config,
   path: string,
   params: Record<string, string | number | undefined>,
 ): Promise<any> {
   const url = buildUrl(config.arcticBase, path, params);
-  let res: Response;
-  try {
-    res = await fetch(url, {
-      headers: { "User-Agent": config.userAgent, Accept: "application/json" },
-    });
-  } catch (err) {
-    throw new Error(`Network error calling Arctic Shift (${path}): ${(err as Error).message}`);
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    if (attempt > 0) await sleep(RETRY_BASE_MS * attempt);
+
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        headers: { "User-Agent": config.userAgent, Accept: "application/json" },
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+    } catch (err) {
+      // Network error or per-request timeout — retry.
+      lastError = new Error(`Network error calling Arctic Shift (${path}): ${(err as Error).message}`);
+      continue;
+    }
+
+    if (res.status === 429) {
+      const reset = res.headers.get("x-ratelimit-reset");
+      throw new Error(
+        `Arctic Shift rate limit hit (HTTP 429)${reset ? `; retry in ~${reset}s` : ""}. ` +
+          `Cache results or slow down — it is a shared free service.`,
+      );
+    }
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      const message = `Arctic Shift API ${res.status} (${path}): ${body.slice(0, 200)}`;
+      if (isTransientStatus(res.status) && attempt < MAX_RETRIES) {
+        lastError = new Error(message);
+        continue;
+      }
+      throw new Error(message);
+    }
+
+    try {
+      return await res.json();
+    } catch {
+      lastError = new Error(`Arctic Shift returned non-JSON for ${path}.`);
+      if (attempt < MAX_RETRIES) continue;
+      throw lastError;
+    }
   }
 
-  if (res.status === 429) {
-    const reset = res.headers.get("x-ratelimit-reset");
-    throw new Error(
-      `Arctic Shift rate limit hit (HTTP 429)${reset ? `; retry in ~${reset}s` : ""}. ` +
-        `Cache results or slow down — it is a shared free service.`,
-    );
-  }
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`Arctic Shift API ${res.status} (${path}): ${body.slice(0, 200)}`);
-  }
-
-  try {
-    return await res.json();
-  } catch {
-    throw new Error(`Arctic Shift returned non-JSON for ${path}.`);
-  }
+  throw lastError ?? new Error(`Arctic Shift request failed for ${path}.`);
 }
 
 function dataArray(json: any): any[] {

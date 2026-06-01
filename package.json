@@ -1,6 +1,6 @@
 {
   "name": "arctic-shift-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Zero-auth, drop-in Reddit MCP server backed by the Arctic Shift archive. Search and read Reddit posts, comments, users, and subreddits with no Reddit login. Optional write tools (submit, reply, vote) activate only when Reddit API credentials are provided.",
   "type": "module",
   "bin": {

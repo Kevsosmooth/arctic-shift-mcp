@@ -16,7 +16,7 @@ import { registerReadTools } from "./tools/read.js";
 import { registerWriteTools } from "./tools/write.js";
 import { createRedditClient } from "./reddit.js";
 
-const VERSION = "0.1.0";
+const VERSION = "0.1.1";
 
 async function main(): Promise<void> {
   const config = loadConfig();
